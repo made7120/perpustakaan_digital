@@ -502,9 +502,9 @@ else:
 
         choice = st.sidebar.selectbox("Menu", menu)
 
-        if choice == "Tambah Buku Digital" and (st.session_state["role"] == "admin" atau st.session_state["role"] == "superadmin"):
+        if choice == "Tambah Buku Digital" and (st.session_state["role"] == "admin" or st.session_state["role"] == "superadmin"):
             tambah_buku_digital()
-        elif choice == "Tambah Buku Fisik" and (st.session_state["role"] == "admin" atau st.session_state["role"] == "superadmin"):
+        elif choice == "Tambah Buku Fisik" and (st.session_state["role"] == "admin" or st.session_state["role"] == "superadmin"):
             tambah_buku_fisik()
         elif choice == "Tampilkan Semua Buku":
             tampilkan_semua_buku()
@@ -512,9 +512,9 @@ else:
             pinjam_buku()
         elif choice == "Kembalikan Buku":
             kembalikan_buku()
-        elif choice == "Hitung Denda" and (st.session_state["role"] == "admin" atau st.session_state["role"] == "superadmin"):
+        elif choice == "Hitung Denda" and (st.session_state["role"] == "admin" or st.session_state["role"] == "superadmin"):
             hitung_denda()
-        elif choice == "Hapus Buku" and (st.session_state["role"] == "admin" atau st.session_state["role"] == "superadmin"):
+        elif choice == "Hapus Buku" and (st.session_state["role"] == "admin" or st.session_state["role"] == "superadmin"):
             hapus_buku()
         elif choice == "Kelola Akun" and st.session_state["role"] == "superadmin":
             tampilkan_daftar_akun()
