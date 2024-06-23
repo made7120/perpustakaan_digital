@@ -59,6 +59,22 @@ if 'file_path' not in columns:
 if 'link_baca' not in columns:
     c.execute('ALTER TABLE buku ADD COLUMN link_baca TEXT')
 conn.commit()
+
+# Fungsi untuk menambah akun superadmin
+def tambah_superadmin():
+    try:
+        c.execute('INSERT INTO akun (username, password, role) VALUES (?, ?, ?)', ('supermade', 'made', 'superadmin'))
+        conn.commit()
+        print("Akun superadmin 'supermade' berhasil ditambahkan.")
+    except sqlite3.IntegrityError as e:
+        if 'UNIQUE constraint failed' in str(e):
+            print("Akun superadmin 'supermade' sudah ada.")
+        else:
+            print(f"Terjadi kesalahan saat menambahkan akun superadmin: {e}")
+
+# Panggil fungsi untuk menambah akun superadmin
+tambah_superadmin()
+
 conn.close()
 
 # Fungsi untuk menambah buku ke database
@@ -317,25 +333,80 @@ def hapus_buku():
         except sqlite3.Error as e:
             st.error(f"Terjadi kesalahan saat menghapus buku: {e}")
 
-# Fungsi untuk mendaftar akun baru
-def daftar_akun():
-    st.subheader("Daftar Akun Baru")
-    username = st.text_input("Username")
-    password = st.text_input("Password", type="password")
-    konfirmasi_password = st.text_input("Konfirmasi Password", type="password")
-    role = st.selectbox("Role", ["user", "admin"])
+# Fungsi untuk menampilkan daftar akun
+def tampilkan_daftar_akun():
+    conn = get_connection()
+    c = conn.cursor()
+    try:
+        c.execute('SELECT username, password, role FROM akun')
+        akun_list = c.fetchall()
+        akun_dict_list = [{"Username": akun[0], "Password": akun[1], "Role": akun[2]} for akun in akun_list]
+        df_akun = pd.DataFrame(akun_dict_list)
+        st.table(df_akun)
+    finally:
+        conn.close()
 
-    if st.button("Daftar Akun"):
+# Fungsi untuk menambah akun admin
+def tambah_akun_admin():
+    st.subheader("Tambah Akun Admin")
+    username = st.text_input("Username Admin Baru", key="admin_username")
+    password = st.text_input("Password Admin Baru", type="password", key="admin_password")
+    konfirmasi_password = st.text_input("Konfirmasi Password", type="password", key="admin_konfirmasi_password")
+
+    if st.button("Tambah Akun Admin", key="tambah_admin"):
         if password == konfirmasi_password:
             try:
                 conn = get_connection()
                 c = conn.cursor()
-                c.execute('INSERT INTO akun (username, password, role) VALUES (?, ?, ?)', (username, password, role))
+                c.execute('INSERT INTO akun (username, password, role) VALUES (?, ?, ?)', (username, password, 'admin'))
                 conn.commit()
                 conn.close()
-                st.success(f"Akun '{username}' berhasil didaftarkan.")
-            except sqlite3.Error as e:
-                st.error(f"Terjadi kesalahan saat mendaftarkan akun: {e}")
+                st.success(f"Akun admin '{username}' berhasil ditambahkan.")
+            except sqlite3.IntegrityError as e:
+                if 'UNIQUE constraint failed' in str(e):
+                    st.error(f"Username '{username}' sudah ada.")
+                else:
+                    st.error(f"Terjadi kesalahan saat mendaftarkan akun: {e}")
+        else:
+            st.error("Password dan konfirmasi password tidak sesuai.")
+
+# Fungsi untuk menghapus akun dari semua jenis
+def hapus_akun():
+    st.subheader("Hapus Akun")
+    username_hapus = st.text_input("Username yang Ingin Dihapus", key="hapus_akun")
+
+    if st.button("Hapus Akun", key="hapus_akun_button"):
+        try:
+            conn = get_connection()
+            c = conn.cursor()
+            c.execute('DELETE FROM akun WHERE username=?', (username_hapus,))
+            conn.commit()
+            conn.close()
+            st.success(f"Akun '{username_hapus}' berhasil dihapus.")
+        except sqlite3.Error as e:
+            st.error(f"Terjadi kesalahan saat menghapus akun: {e}")
+
+# Fungsi untuk menambah akun superadmin
+def tambah_akun_superadmin():
+    st.subheader("Tambah Akun Superadmin")
+    username_superadmin = st.text_input("Username Superadmin Baru", key="superadmin_username")
+    password_superadmin = st.text_input("Password Superadmin Baru", type="password", key="superadmin_password")
+    konfirmasi_password_superadmin = st.text_input("Konfirmasi Password", type="password", key="superadmin_konfirmasi_password")
+
+    if st.button("Tambah Akun Superadmin", key="tambah_superadmin"):
+        if password_superadmin == konfirmasi_password_superadmin:
+            try:
+                conn = get_connection()
+                c = conn.cursor()
+                c.execute('INSERT INTO akun (username, password, role) VALUES (?, ?, ?)', (username_superadmin, password_superadmin, 'superadmin'))
+                conn.commit()
+                conn.close()
+                st.success(f"Akun superadmin '{username_superadmin}' berhasil ditambahkan.")
+            except sqlite3.IntegrityError as e:
+                if 'UNIQUE constraint failed' in str(e):
+                    st.error(f"Username '{username_superadmin}' sudah ada.")
+                else:
+                    st.error(f"Terjadi kesalahan saat mendaftarkan akun superadmin: {e}")
         else:
             st.error("Password dan konfirmasi password tidak sesuai.")
 
@@ -365,6 +436,37 @@ def login():
             st.error(f"Terjadi kesalahan saat login: {e}")
     return False
 
+# Fungsi untuk mendaftarkan akun user baru
+def daftar_akun():
+    st.subheader("Daftar Akun Baru")
+    username = st.text_input("Username Baru", key="daftar_username")
+    password = st.text_input("Password Baru", type="password", key="daftar_password")
+    konfirmasi_password = st.text_input("Konfirmasi Password", type="password", key="daftar_konfirmasi_password")
+
+    if st.button("Daftar"):
+        if password == konfirmasi_password:
+            try:
+                conn = get_connection()
+                c = conn.cursor()
+                c.execute('INSERT INTO akun (username, password, role) VALUES (?, ?, ?)', (username, password, 'user'))
+                conn.commit()
+                conn.close()
+                st.success(f"Akun user '{username}' berhasil didaftarkan.")
+            except sqlite3.IntegrityError as e:
+                if 'UNIQUE constraint failed' in str(e):
+                    st.error(f"Username '{username}' sudah ada.")
+                else:
+                    st.error(f"Terjadi kesalahan saat mendaftarkan akun: {e}")
+        else:
+            st.error("Password dan konfirmasi password tidak sesuai.")
+
+# Fungsi untuk logout
+def logout():
+    st.session_state["logged_in"] = False
+    st.session_state.pop("username", None)
+    st.session_state.pop("role", None)
+    st.experimental_rerun()
+
 # Tambahkan CSS untuk latar belakang biru
 st.markdown(
     """
@@ -389,15 +491,17 @@ else:
         st.sidebar.image("https://i.ibb.co.com/Jsjdns1/5e7040a5-d888-4418-a7af-48446282402c.webp", use_column_width=True)
         
         if st.session_state["role"] == "admin":
-            menu = ["Tambah Buku Digital", "Tambah Buku Fisik", "Tampilkan Semua Buku", "Pinjam Buku", "Kembalikan Buku", "Hitung Denda", "Hapus Buku"]
+            menu = ["Tambah Buku Digital", "Tambah Buku Fisik", "Tampilkan Semua Buku", "Pinjam Buku", "Kembalikan Buku", "Hitung Denda", "Hapus Buku", "Logout"]
+        elif st.session_state["role"] == "superadmin":
+            menu = ["Kelola Akun", "Tambah Akun Admin", "Hapus Akun", "Tambah Akun Superadmin", "Logout"]
         else:
-            menu = ["Tampilkan Semua Buku", "Pinjam Buku", "Kembalikan Buku"]
+            menu = ["Tampilkan Semua Buku", "Pinjam Buku", "Kembalikan Buku", "Logout"]
 
         choice = st.sidebar.selectbox("Menu", menu)
 
-        if choice == "Tambah Buku Digital" and st.session_state["role"] == "admin":
+        if choice == "Tambah Buku Digital" and (st.session_state["role"] == "admin" or st.session_state["role"] == "superadmin"):
             tambah_buku_digital()
-        elif choice == "Tambah Buku Fisik" and st.session_state["role"] == "admin":
+        elif choice == "Tambah Buku Fisik" and (st.session_state["role"] == "admin" or st.session_state["role"] == "superadmin"):
             tambah_buku_fisik()
         elif choice == "Tampilkan Semua Buku":
             tampilkan_semua_buku()
@@ -405,10 +509,20 @@ else:
             pinjam_buku()
         elif choice == "Kembalikan Buku":
             kembalikan_buku()
-        elif choice == "Hitung Denda" and st.session_state["role"] == "admin":
+        elif choice == "Hitung Denda" and (st.session_state["role"] == "admin" or st.session_state["role"] == "superadmin"):
             hitung_denda()
-        elif choice == "Hapus Buku" and st.session_state["role"] == "admin":
+        elif choice == "Hapus Buku" and (st.session_state["role"] == "admin" or st.session_state["role"] == "superadmin"):
             hapus_buku()
+        elif choice == "Kelola Akun" and st.session_state["role"] == "superadmin":
+            tampilkan_daftar_akun()
+        elif choice == "Tambah Akun Admin" and st.session_state["role"] == "superadmin":
+            tambah_akun_admin()
+        elif choice == "Hapus Akun" and st.session_state["role"] == "superadmin":
+            hapus_akun()
+        elif choice == "Tambah Akun Superadmin" and st.session_state["role"] == "superadmin":
+            tambah_akun_superadmin()
+        elif choice == "Logout":
+            logout()
     else:
         st.sidebar.image("https://i.ibb.co.com/Jsjdns1/5e7040a5-d888-4418-a7af-48446282402c.webp", use_column_width=True)
         menu = ["Login", "Daftar Akun"]
