@@ -8,7 +8,7 @@ import base64
 
 # Koneksi ke database SQLite dengan timeout
 def get_connection():
-    return sqlite3.connect('perpustakaan20.db', check_same_thread=False, timeout=10)
+    return sqlite3.connect('perpustakaan8.db', check_same_thread=False, timeout=10)
 
 # Perbarui skema tabel buku jika belum ada
 conn = get_connection()
@@ -370,6 +370,8 @@ def tambah_akun_admin():
                     st.error(f"Username '{username}' sudah ada.")
                 else:
                     st.error(f"Terjadi kesalahan saat mendaftarkan akun: {e}")
+            except sqlite3.OperationalError as e:
+                st.error(f"Terjadi kesalahan operasional pada database: {e}")
         else:
             st.error("Password dan konfirmasi password tidak sesuai.")
 
@@ -410,6 +412,8 @@ def tambah_akun_superadmin():
                     st.error(f"Username '{username_superadmin}' sudah ada.")
                 else:
                     st.error(f"Terjadi kesalahan saat mendaftarkan akun superadmin: {e}")
+            except sqlite3.OperationalError as e:
+                st.error(f"Terjadi kesalahan operasional pada database: {e}")
         else:
             st.error("Password dan konfirmasi password tidak sesuai.")
 
@@ -460,6 +464,8 @@ def daftar_akun():
                     st.error(f"Username '{username}' sudah ada.")
                 else:
                     st.error(f"Terjadi kesalahan saat mendaftarkan akun: {e}")
+            except sqlite3.OperationalError as e:
+                st.error(f"Terjadi kesalahan operasional pada database: {e}")
         else:
             st.error("Password dan konfirmasi password tidak sesuai.")
 
