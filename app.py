@@ -500,7 +500,7 @@ st.markdown(
     """
     <style>
     .stApp {
-        background-image: url("https://i.ibb.co.com/tBXL50n/backgrounf.png");
+        background-image: url("https://i.ibb.co.com/0jpYBCB/walpaperr.png");
         background-size: cover;
     }
     .st-emotion-cache-6qob1r {  /* CSS class untuk sidebar */
