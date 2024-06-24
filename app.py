@@ -4,7 +4,6 @@ from datetime import datetime, timedelta
 import time
 import os
 import pandas as pd
-import base64
 
 # Koneksi ke database SQLite dengan timeout
 def get_connection():
@@ -31,7 +30,7 @@ CREATE TABLE IF NOT EXISTS buku (
     tanggal_pengembalian DATE,
     denda INTEGER,
     file_path TEXT,
-    link_baca TEXT
+    link_download TEXT
 )
 ''')
 
@@ -56,8 +55,8 @@ if 'denda' not in columns:
     c.execute('ALTER TABLE buku ADD COLUMN denda INTEGER')
 if 'file_path' not in columns:
     c.execute('ALTER TABLE buku ADD COLUMN file_path TEXT')
-if 'link_baca' not in columns:
-    c.execute('ALTER TABLE buku ADD COLUMN link_baca TEXT')
+if 'link_download' not in columns:
+    c.execute('ALTER TABLE buku ADD COLUMN link_download TEXT')
 conn.commit()
 
 # Fungsi untuk menambah akun superadmin
@@ -84,9 +83,9 @@ def tambah_buku_ke_db(buku):
     try:
         if isinstance(buku, BukuDigital):
             c.execute('''
-            INSERT INTO buku (judul, penulis, tahun_terbit, status, jenis, ukuran_file, format_file, file_path, link_baca)
+            INSERT INTO buku (judul, penulis, tahun_terbit, status, jenis, ukuran_file, format_file, file_path, link_download)
             VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
-            ''', (buku.judul, buku.penulis, buku.tahun_terbit, buku.status, 'digital', buku.ukuran_file, buku.format_file, buku.file_path, buku.link_baca))
+            ''', (buku.judul, buku.penulis, buku.tahun_terbit, buku.status, 'digital', buku.ukuran_file, buku.format_file, buku.file_path, buku.link_download))
         elif isinstance(buku, BukuFisik):
             c.execute('''
             INSERT INTO buku (judul, penulis, tahun_terbit, status, jenis, jumlah_halaman, berat)
@@ -110,16 +109,16 @@ class Buku:
         return f"Judul: {self.judul}, Penulis: {self.penulis}, Tahun Terbit: {self.tahun_terbit}, Status: {self.status}"
 
 class BukuDigital(Buku):
-    def __init__(self, judul, penulis, tahun_terbit, ukuran_file, format_file, file_path, link_baca):
+    def __init__(self, judul, penulis, tahun_terbit, ukuran_file, format_file, file_path, link_download):
         super().__init__(judul, penulis, tahun_terbit)
         self.ukuran_file = ukuran_file
         self.format_file = format_file
         self.file_path = file_path
-        self.link_baca = link_baca
+        self.link_download = link_download
 
     def info_buku(self):
         info = super().info_buku()
-        return f"{info}, Ukuran File: {self.ukuran_file}MB, Format: {self.format_file}, File Path: {self.file_path}, Link Baca: {self.link_baca}"
+        return f"{info}, Ukuran File: {self.ukuran_file}MB, Format: {self.format_file}"
 
 class BukuFisik(Buku):
     def __init__(self, judul, penulis, tahun_terbit, jumlah_halaman, berat):
@@ -149,8 +148,8 @@ def tambah_buku_digital():
             file_path = f"uploads/{uploaded_file.name}"
             with open(file_path, "wb") as f:
                 f.write(uploaded_file.getbuffer())
-            link_baca = file_path
-            buku = BukuDigital(judul, penulis, tahun_terbit, ukuran_file, format_file, file_path, link_baca)
+            link_download = file_path
+            buku = BukuDigital(judul, penulis, tahun_terbit, ukuran_file, format_file, file_path, link_download)
             tambah_buku_ke_db(buku)
             st.success(f"Buku digital '{judul}' berhasil ditambahkan.")
         else:
@@ -180,16 +179,6 @@ def ambil_semua_buku_dari_db():
     finally:
         conn.close()
 
-# Fungsi untuk menampilkan isi buku dengan base64 PDF viewer
-def tampilkan_buku(file_path):
-    st.button("Kembali", on_click=lambda: st.session_state.pop("current_file_path", None))
-    with open(file_path, "rb") as file:
-        base64_pdf = base64.b64encode(file.read()).decode('utf-8')
-    pdf_display = f'''
-    <iframe src="data:application/pdf;base64,{base64_pdf}" width="700" height="1000" type="application/pdf"></iframe>
-    '''
-    st.markdown(pdf_display, unsafe_allow_html=True)
-
 # Fungsi untuk menampilkan semua buku
 def tampilkan_semua_buku():
     st.subheader("Daftar Semua Buku")
@@ -198,10 +187,8 @@ def tampilkan_semua_buku():
     for buku in buku_list:
         if buku[5] == 'fisik':
             buku_obj = BukuFisik(buku[1], buku[2], buku[3], buku[7], buku[8])
-            link_baca = 'N/A'
         else:
             buku_obj = BukuDigital(buku[1], buku[2], buku[3], buku[6], buku[7], buku[14], buku[15])
-            link_baca = buku[15]
 
         buku_dict = {
             "ID": buku[0],
@@ -212,8 +199,6 @@ def tampilkan_semua_buku():
             "Jenis": buku[5],
             "Ukuran File": buku_obj.ukuran_file if isinstance(buku_obj, BukuDigital) else 'N/A',
             "Format File": buku_obj.format_file if isinstance(buku_obj, BukuDigital) else 'N/A',
-            "File Path": buku_obj.file_path if isinstance(buku_obj, BukuDigital) else 'N/A',
-            "Link Baca": link_baca if link_baca != 'N/A' else 'N/A',
             "Jumlah Halaman": buku_obj.jumlah_halaman if isinstance(buku_obj, BukuFisik) else 'N/A',
             "Berat": buku_obj.berat if isinstance(buku_obj, BukuFisik) else 'N/A',
             "Nama Peminjam": buku[10] if buku[10] else 'N/A',
@@ -227,12 +212,17 @@ def tampilkan_semua_buku():
     
     st.table(df_buku)
 
-    # Tampilkan tombol atau link baca buku untuk setiap buku digital
+    # Tampilkan tombol atau link download buku untuk setiap buku digital
     for index, row in df_buku.iterrows():
-        if row["Link Baca"] != 'N/A':
-            if st.button(f"Baca Buku {row['Judul Buku']}", key=row["ID"]):
-                st.session_state["current_file_path"] = row["File Path"]
-                st.experimental_rerun()
+        if row["Jenis"] == "digital":
+            file_path = buku_list[index][14]
+            with open(file_path, "rb") as file:
+                st.download_button(
+                    label=f"Download {row['Judul Buku']}",
+                    data=file,
+                    file_name=os.path.basename(file_path),
+                    mime='application/octet-stream'
+                )
 
 # Fungsi untuk menjalankan query dengan retry
 def execute_query_with_retry(query, params, commit=False):
@@ -261,19 +251,16 @@ def pinjam_buku():
 
     if st.button("Pinjam Buku"):
         try:
-            query = 'SELECT * FROM buku WHERE judul=? AND status="tersedia"'
+            query = 'SELECT * FROM buku WHERE judul=? AND status="tersedia" AND jenis="fisik"'
             buku = execute_query_with_retry(query, (judul,))
             if buku:
                 tanggal_peminjaman = datetime.now().date()
                 tanggal_pengembalian = tanggal_peminjaman + timedelta(days=7)
-                link_baca = buku[0][15] if buku[0][15] else 'N/A'
-                query = 'UPDATE buku SET status="dipinjam", nama_peminjam=?, tanggal_peminjaman=?, tanggal_pengembalian=?, link_baca=? WHERE judul=?'
-                execute_query_with_retry(query, (nama_peminjam, tanggal_peminjaman, tanggal_pengembalian, link_baca, judul), commit=True)
+                query = 'UPDATE buku SET status="dipinjam", nama_peminjam=?, tanggal_peminjaman=?, tanggal_pengembalian=? WHERE judul=?'
+                execute_query_with_retry(query, (nama_peminjam, tanggal_peminjaman, tanggal_pengembalian, judul), commit=True)
                 st.success(f"Buku '{judul}' berhasil dipinjam oleh {nama_peminjam}.")
-                if link_baca != 'N/A':
-                    st.markdown(f"[Baca Buku]({link_baca}) (Link berlaku hingga {tanggal_pengembalian})")
             else:
-                st.error(f"Buku '{judul}' tidak tersedia untuk dipinjam.")
+                st.error(f"Buku '{judul}' tidak tersedia untuk dipinjam atau bukan buku fisik.")
         except sqlite3.Error as e:
             st.error(f"Terjadi kesalahan saat meminjam buku: {e}")
 
@@ -288,7 +275,7 @@ def kembalikan_buku():
             query = 'SELECT * FROM buku WHERE judul=? AND status="dipinjam" AND nama_peminjam=?'
             buku = execute_query_with_retry(query, (judul, nama_peminjam))
             if buku:
-                query = 'UPDATE buku SET status="tersedia", nama_peminjam=NULL, tanggal_peminjaman=NULL, tanggal_pengembalian=NULL, denda=NULL, link_baca=NULL WHERE judul=?'
+                query = 'UPDATE buku SET status="tersedia", nama_peminjam=NULL, tanggal_peminjaman=NULL, tanggal_pengembalian=NULL, denda=NULL WHERE judul=?'
                 execute_query_with_retry(query, (judul,), commit=True)
                 st.success(f"Buku '{judul}' berhasil dikembalikan oleh {nama_peminjam}.")
             else:
@@ -331,9 +318,48 @@ def hapus_buku():
         try:
             query = 'DELETE FROM buku WHERE judul=? AND penulis=?'
             execute_query_with_retry(query, (judul, penulis), commit=True)
+            urutkan_id_buku()
             st.success(f"Buku '{judul}' berhasil dihapus.")
         except sqlite3.Error as e:
             st.error(f"Terjadi kesalahan saat menghapus buku: {e}")
+
+# Fungsi untuk mengurutkan ulang ID buku
+def urutkan_id_buku():
+    conn = get_connection()
+    c = conn.cursor()
+    try:
+        c.execute('''
+        CREATE TABLE IF NOT EXISTS buku_temp (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            judul TEXT,
+            penulis TEXT,
+            tahun_terbit INTEGER,
+            status TEXT,
+            jenis TEXT,
+            ukuran_file REAL,
+            format_file TEXT,
+            jumlah_halaman INTEGER,
+            berat REAL,
+            nama_peminjam TEXT,
+            tanggal_peminjaman DATE,
+            tanggal_pengembalian DATE,
+            denda INTEGER,
+            file_path TEXT,
+            link_download TEXT
+        )
+        ''')
+        c.execute('''
+        INSERT INTO buku_temp (judul, penulis, tahun_terbit, status, jenis, ukuran_file, format_file, jumlah_halaman, berat, nama_peminjam, tanggal_peminjaman, tanggal_pengembalian, denda, file_path, link_download)
+        SELECT judul, penulis, tahun_terbit, status, jenis, ukuran_file, format_file, jumlah_halaman, berat, nama_peminjam, tanggal_peminjaman, tanggal_pengembalian, denda, file_path, link_download
+        FROM buku
+        ''')
+        c.execute('DROP TABLE buku')
+        c.execute('ALTER TABLE buku_temp RENAME TO buku')
+        conn.commit()
+    except sqlite3.Error as e:
+        st.error(f"Terjadi kesalahan saat mengurutkan ulang ID buku: {e}")
+    finally:
+        conn.close()
 
 # Fungsi untuk menampilkan daftar akun
 def tampilkan_daftar_akun():
@@ -469,11 +495,15 @@ def logout():
     st.session_state.pop("role", None)
     st.experimental_rerun()
 
-# Tambahkan CSS untuk latar belakang biru
+# Tambahkan CSS untuk latar belakang gambar dan sidebar biru
 st.markdown(
     """
     <style>
     .stApp {
+        background-image: url("https://i.ibb.co.com/tBXL50n/backgrounf.png");
+        background-size: cover;
+    }
+    .st-emotion-cache-6qob1r {  /* CSS class untuk sidebar */
         background-color: #ADD8E6;
     }
     </style>
@@ -486,54 +516,52 @@ st.markdown("<h1 style='text-align: center; color: green;'>Perpustakaan Digital<
 if "logged_in" not in st.session_state:
     st.session_state["logged_in"] = False
 
-if "current_file_path" in st.session_state:
-    tampilkan_buku(st.session_state["current_file_path"])
-else:
-    if st.session_state["logged_in"]:
-        st.sidebar.image("https://i.ibb.co.com/Jsjdns1/5e7040a5-d888-4418-a7af-48446282402c.webp", use_column_width=True)
-        
-        if st.session_state["role"] == "admin":
-            menu = ["Tambah Buku Digital", "Tambah Buku Fisik", "Tampilkan Semua Buku", "Pinjam Buku", "Kembalikan Buku", "Hitung Denda", "Hapus Buku", "Logout"]
-        elif st.session_state["role"] == "superadmin":
-            menu = ["Kelola Akun", "Tambah Akun Admin", "Hapus Akun", "Tambah Akun Superadmin", "Logout"]
-        else:
-            menu = ["Tampilkan Semua Buku", "Pinjam Buku", "Kembalikan Buku", "Logout"]
-
-        choice = st.sidebar.selectbox("Menu", menu)
-
-        if choice == "Tambah Buku Digital" and (st.session_state["role"] == "admin" or st.session_state["role"] == "superadmin"):
-            tambah_buku_digital()
-        elif choice == "Tambah Buku Fisik" and (st.session_state["role"] == "admin" or st.session_state["role"] == "superadmin"):
-            tambah_buku_fisik()
-        elif choice == "Tampilkan Semua Buku":
-            tampilkan_semua_buku()
-        elif choice == "Pinjam Buku":
-            pinjam_buku()
-        elif choice == "Kembalikan Buku":
-            kembalikan_buku()
-        elif choice == "Hitung Denda" and (st.session_state["role"] == "admin" or st.session_state["role"] == "superadmin"):
-            hitung_denda()
-        elif choice == "Hapus Buku" and (st.session_state["role"] == "admin" or st.session_state["role"] == "superadmin"):
-            hapus_buku()
-        elif choice == "Kelola Akun" and st.session_state["role"] == "superadmin":
-            tampilkan_daftar_akun()
-        elif choice == "Tambah Akun Admin" and st.session_state["role"] == "superadmin":
-            tambah_akun_admin()
-        elif choice == "Hapus Akun" and st.session_state["role"] == "superadmin":
-            hapus_akun()
-        elif choice == "Tambah Akun Superadmin" and st.session_state["role"] == "superadmin":
-            tambah_akun_superadmin()
-        elif choice == "Logout":
-            logout()
+if st.session_state["logged_in"]:
+    st.sidebar.image("https://i.ibb.co.com/Jsjdns1/5e7040a5-d888-4418-a7af-48446282402c.webp", use_column_width=True)
+    
+    if st.session_state["role"] == "admin":
+        menu = ["Tambah Buku Digital", "Tambah Buku Fisik", "Tampilkan Semua Buku", "Pinjam Buku", "Kembalikan Buku", "Hitung Denda", "Hapus Buku", "Logout"]
+    elif st.session_state["role"] == "superadmin":
+        menu = ["Kelola Akun", "Tambah Akun Admin", "Hapus Akun", "Tambah Akun Superadmin", "Logout"]
     else:
-        st.sidebar.image("https://i.ibb.co.com/Jsjdns1/5e7040a5-d888-4418-a7af-48446282402c.webp", use_column_width=True)
-        menu = ["Login", "Daftar Akun"]
-        choice = st.sidebar.selectbox("Menu", menu)    
+        menu = ["Tampilkan Semua Buku", "Pinjam Buku", "Kembalikan Buku", "Logout"]
 
-        if choice == "Login":
-            login()
-        elif choice == "Daftar Akun":
-            daftar_akun()
+    choice = st.sidebar.selectbox("Menu", menu)
+
+    if choice == "Tambah Buku Digital" and (st.session_state["role"] == "admin" or st.session_state["role"] == "superadmin"):
+        tambah_buku_digital()
+    elif choice == "Tambah Buku Fisik" and (st.session_state["role"] == "admin" or st.session_state["role"] == "superadmin"):
+        tambah_buku_fisik()
+    elif choice == "Tampilkan Semua Buku":
+        tampilkan_semua_buku()
+    elif choice == "Pinjam Buku":
+        pinjam_buku()
+    elif choice == "Kembalikan Buku":
+        kembalikan_buku()
+    elif choice == "Hitung Denda" and (st.session_state["role"] == "admin" or st.session_state["role"] == "superadmin"):
+        hitung_denda()
+    elif choice == "Hapus Buku" and (st.session_state["role"] == "admin" or st.session_state["role"] == "superadmin"):
+        hapus_buku()
+    elif choice == "Kelola Akun" and st.session_state["role"] == "superadmin":
+        tampilkan_daftar_akun()
+    elif choice == "Tambah Akun Admin" and st.session_state["role"] == "superadmin":
+        tambah_akun_admin()
+    elif choice == "Hapus Akun" and st.session_state["role"] == "superadmin":
+        hapus_akun()
+    elif choice == "Tambah Akun Superadmin" and st.session_state["role"] == "superadmin":
+        tambah_akun_superadmin()
+    elif choice == "Logout":
+        logout()
+else:
+    st.sidebar.image("https://i.ibb.co.com/Jsjdns1/5e7040a5-d888-4418-a7af-48446282402c.webp", use_column_width=True)
+    menu = ["Login", "Daftar Akun"]
+    choice = st.sidebar.selectbox("Menu", menu)    
+
+    if choice == "Login":
+        login()
+    elif choice == "Daftar Akun":
+        daftar_akun()
 
 # Tambahkan teks hak cipta di bagian bawah aplikasi
 st.markdown("<div style='text-align: center; margin-top: 50px;'>© 2024 Made Arya</div>", unsafe_allow_html=True)
+
