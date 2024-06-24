@@ -370,6 +370,19 @@ def tampilkan_daftar_akun():
         akun_list = c.fetchall()
         akun_dict_list = [{"Username": akun[0], "Password": akun[1], "Role": akun[2]} for akun in akun_list]
         df_akun = pd.DataFrame(akun_dict_list)
+        
+        # CSS untuk membuat tabel tidak transparan
+        st.markdown(
+            """
+            <style>
+            .css-1bn9bco {
+                background-color: rgba(255, 255, 255, 1) !important;
+            }
+            </style>
+            """,
+            unsafe_allow_html=True
+        )
+        
         st.table(df_akun)
     finally:
         conn.close()
@@ -500,12 +513,16 @@ st.markdown(
     """
     <style>
     .stApp {
-        background-image: url("https://i.ibb.co.com/0jpYBCB/walpaperr.png");
+        background-image: url("https://i.ibb.co.com/tBXL50n/backgrounf.png");
         background-size: cover;
     }
     .st-emotion-cache-6qob1r {  /* CSS class untuk sidebar */
         background-color: #ADD8E6;
     }
+    .st-emotion-cache-165ax5l {
+        background-color: rgba(255, 255, 255, 1) !important;
+    }
+
     </style>
     """,
     unsafe_allow_html=True
@@ -564,3 +581,4 @@ else:
 
 # Tambahkan teks hak cipta di bagian bawah aplikasi
 st.markdown("<div style='text-align: center; margin-top: 50px;'>© 2024 Made Arya</div>", unsafe_allow_html=True)
+
