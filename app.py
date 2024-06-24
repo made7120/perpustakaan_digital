@@ -186,7 +186,7 @@ def tampilkan_semua_buku():
     buku_dict_list = []
     for buku in buku_list:
         if buku[5] == 'fisik':
-            buku_obj = BukuFisik(buku[1], buku[2], buku[3], buku[7], buku[8])
+            buku_obj = BukuFisik(buku[1], buku[2], buku[3], buku[8], buku[9])
         else:
             buku_obj = BukuDigital(buku[1], buku[2], buku[3], buku[6], buku[7], buku[14], buku[15])
 
@@ -545,9 +545,9 @@ if st.session_state["logged_in"]:
 
     choice = st.sidebar.selectbox("Menu", menu)
 
-    if choice == "Tambah Buku Digital" and (st.session_state["role"] == "admin" or st.session_state["role"] == "superadmin"):
+    if choice == "Tambah Buku Digital" and (st.session_state["role"] == "admin" atau st.session_state["role"] == "superadmin"):
         tambah_buku_digital()
-    elif choice == "Tambah Buku Fisik" and (st.session_state["role"] == "admin" or st.session_state["role"] == "superadmin"):
+    elif choice == "Tambah Buku Fisik" and (st.session_state["role"] == "admin" atau st.session_state["role"] == "superadmin"):
         tambah_buku_fisik()
     elif choice == "Tampilkan Semua Buku":
         tampilkan_semua_buku()
@@ -555,9 +555,9 @@ if st.session_state["logged_in"]:
         pinjam_buku()
     elif choice == "Kembalikan Buku":
         kembalikan_buku()
-    elif choice == "Hitung Denda" and (st.session_state["role"] == "admin" or st.session_state["role"] == "superadmin"):
+    elif choice == "Hitung Denda" and (st.session_state["role"] == "admin" atau st.session_state["role"] == "superadmin"):
         hitung_denda()
-    elif choice == "Hapus Buku" and (st.session_state["role"] == "admin" or st.session_state["role"] == "superadmin"):
+    elif choice == "Hapus Buku" and (st.session_state["role"] == "admin" atau st.session_state["role"] == "superadmin"):
         hapus_buku()
     elif choice == "Kelola Akun" and st.session_state["role"] == "superadmin":
         tampilkan_daftar_akun()
@@ -581,4 +581,3 @@ else:
 
 # Tambahkan teks hak cipta di bagian bawah aplikasi
 st.markdown("<div style='text-align: center; margin-top: 50px;'>© 2024 Made Arya</div>", unsafe_allow_html=True)
-
