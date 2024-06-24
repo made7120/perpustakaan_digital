@@ -8,7 +8,7 @@ import base64
 
 # Koneksi ke database SQLite dengan timeout
 def get_connection():
-    return sqlite3.connect('perpustakaan21.db', check_same_thread=False, timeout=10)
+    return sqlite3.connect('perpustakaan8.db', check_same_thread=False, timeout=10)
 
 # Perbarui skema tabel buku jika belum ada
 conn = get_connection()
@@ -149,7 +149,7 @@ def tambah_buku_digital():
             file_path = f"uploads/{uploaded_file.name}"
             with open(file_path, "wb") as f:
                 f.write(uploaded_file.getbuffer())
-            link_baca = f"/read/{uploaded_file.name}"
+            link_baca = file_path
             buku = BukuDigital(judul, penulis, tahun_terbit, ukuran_file, format_file, file_path, link_baca)
             tambah_buku_ke_db(buku)
             st.success(f"Buku digital '{judul}' berhasil ditambahkan.")
@@ -180,12 +180,14 @@ def ambil_semua_buku_dari_db():
     finally:
         conn.close()
 
-# Fungsi untuk menampilkan isi buku dengan PDF viewer dan tombol kembali
+# Fungsi untuk menampilkan isi buku dengan base64 PDF viewer
 def tampilkan_buku(file_path):
     st.button("Kembali", on_click=lambda: st.session_state.pop("current_file_path", None))
     with open(file_path, "rb") as file:
         base64_pdf = base64.b64encode(file.read()).decode('utf-8')
-    pdf_display = f'<iframe src="data:application/pdf;base64,{base64_pdf}" width="700" height="1000" type="application/pdf"></iframe>'
+    pdf_display = f'''
+    <iframe src="data:application/pdf;base64,{base64_pdf}" width="700" height="1000" type="application/pdf"></iframe>
+    '''
     st.markdown(pdf_display, unsafe_allow_html=True)
 
 # Fungsi untuk menampilkan semua buku
@@ -501,7 +503,7 @@ else:
 
         if choice == "Tambah Buku Digital" and (st.session_state["role"] == "admin" or st.session_state["role"] == "superadmin"):
             tambah_buku_digital()
-        elif choice == "Tambah Buku Fisik" and (st.session_state["role"] == "admin" or st.session_state["role"] == "superadmin"):
+        elif choice == "Tambah Buku Fisik" and (st.session_state["role"] == "admin" atau st.session_state["role"] == "superadmin"):
             tambah_buku_fisik()
         elif choice == "Tampilkan Semua Buku":
             tampilkan_semua_buku()
@@ -509,9 +511,9 @@ else:
             pinjam_buku()
         elif choice == "Kembalikan Buku":
             kembalikan_buku()
-        elif choice == "Hitung Denda" and (st.session_state["role"] == "admin" or st.session_state["role"] == "superadmin"):
+        elif choice == "Hitung Denda" and (st.session_state["role"] == "admin" atau st.session_state["role"] == "superadmin"):
             hitung_denda()
-        elif choice == "Hapus Buku" and (st.session_state["role"] == "admin" or st.session_state["role"] == "superadmin"):
+        elif choice == "Hapus Buku" and (st.session_state["role"] == "admin" atau st.session_state["role"] == "superadmin"):
             hapus_buku()
         elif choice == "Kelola Akun" and st.session_state["role"] == "superadmin":
             tampilkan_daftar_akun()
@@ -535,4 +537,3 @@ else:
 
 # Tambahkan teks hak cipta di bagian bawah aplikasi
 st.markdown("<div style='text-align: center; margin-top: 50px;'>© 2024 Made Arya</div>", unsafe_allow_html=True)
-
