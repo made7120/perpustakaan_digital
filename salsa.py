@@ -288,3 +288,6 @@ st.markdown(
     """,
     unsafe_allow_html=True
 )
+
+# Tambahkan teks hak cipta di bagian bawah aplikasi
+st.markdown("<div style='text-align: center; margin-top: 50px;'>© 2024 Made Arya</div>", unsafe_allow_html=True)
