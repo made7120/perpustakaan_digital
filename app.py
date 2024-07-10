@@ -4,6 +4,7 @@ from datetime import datetime, timedelta
 import time
 import os
 import pandas as pd
+from abc import ABC, abstractmethod
 
 # Koneksi ke database SQLite dengan timeout
 def get_connection():
@@ -76,6 +77,40 @@ tambah_superadmin()
 
 conn.close()
 
+# Implementasi dasar kelas buku menggunakan konsep OOP
+class BukuBase(ABC):
+    def __init__(self, judul, penulis, tahun_terbit):
+        self.judul = judul
+        self.penulis = penulis
+        self.tahun_terbit = tahun_terbit
+        self.status = "tersedia"
+
+    @abstractmethod
+    def info_buku(self):
+        pass
+
+class BukuDigital(BukuBase):
+    def __init__(self, judul, penulis, tahun_terbit, ukuran_file, format_file, file_path, link_download):
+        super().__init__(judul, penulis, tahun_terbit)
+        self.ukuran_file = ukuran_file
+        self.format_file = format_file
+        self.file_path = file_path
+        self.link_download = link_download
+
+    def info_buku(self):
+        info = f"Judul: {self.judul}, Penulis: {self.penulis}, Tahun Terbit: {self.tahun_terbit}, Status: {self.status}"
+        return f"{info}, Ukuran File: {self.ukuran_file} MB, Format: {self.format_file}"
+
+class BukuFisik(BukuBase):
+    def __init__(self, judul, penulis, tahun_terbit, jumlah_halaman, berat):
+        super().__init__(judul, penulis, tahun_terbit)
+        self.jumlah_halaman = jumlah_halaman
+        self.berat = berat
+
+    def info_buku(self):
+        info = f"Judul: {self.judul}, Penulis: {self.penulis}, Tahun Terbit: {self.tahun_terbit}, Status: {self.status}"
+        return f"{info}, Jumlah Halaman: {self.jumlah_halaman}, Berat: {self.berat} gram"
+
 # Fungsi untuk menambah buku ke database
 def tambah_buku_ke_db(buku):
     conn = get_connection()
@@ -97,38 +132,28 @@ def tambah_buku_ke_db(buku):
     finally:
         conn.close()
 
-# Kelas-kelas perpustakaan
-class Buku:
-    def __init__(self, judul, penulis, tahun_terbit):
-        self.judul = judul
-        self.penulis = penulis
-        self.tahun_terbit = tahun_terbit
-        self.status = "tersedia"
-
-    def info_buku(self):
-        return f"Judul: {self.judul}, Penulis: {self.penulis}, Tahun Terbit: {self.tahun_terbit}, Status: {self.status}"
-
-class BukuDigital(Buku):
-    def __init__(self, judul, penulis, tahun_terbit, ukuran_file, format_file, file_path, link_download):
-        super().__init__(judul, penulis, tahun_terbit)
-        self.ukuran_file = ukuran_file
-        self.format_file = format_file
-        self.file_path = file_path
-        self.link_download = link_download
-
-    def info_buku(self):
-        info = super().info_buku()
-        return f"{info}, Ukuran File: {self.ukuran_file}MB, Format: {self.format_file}"
-
-class BukuFisik(Buku):
-    def __init__(self, judul, penulis, tahun_terbit, jumlah_halaman, berat):
-        super().__init__(judul, penulis, tahun_terbit)
-        self.jumlah_halaman = jumlah_halaman
-        self.berat = berat
-
-    def info_buku(self):
-        info = super().info_buku()
-        return f"{info}, Jumlah Halaman: {self.jumlah_halaman}, Berat: {self.berat} gram"
+# Fungsi untuk mengedit buku di database
+def edit_buku_db(judul_buku, buku):
+    conn = get_connection()
+    c = conn.cursor()
+    try:
+        if isinstance(buku, BukuDigital):
+            c.execute('''
+            UPDATE buku
+            SET judul=?, penulis=?, tahun_terbit=?, ukuran_file=?, format_file=?, file_path=?, link_download=?
+            WHERE judul=?
+            ''', (buku.judul, buku.penulis, buku.tahun_terbit, buku.ukuran_file, buku.format_file, buku.file_path, buku.link_download, judul_buku))
+        elif isinstance(buku, BukuFisik):
+            c.execute('''
+            UPDATE buku
+            SET judul=?, penulis=?, tahun_terbit=?, jumlah_halaman=?, berat=?
+            WHERE judul=?
+            ''', (buku.judul, buku.penulis, buku.tahun_terbit, buku.jumlah_halaman, buku.berat, judul_buku))
+        conn.commit()
+    except sqlite3.Error as e:
+        st.error(f"Terjadi kesalahan saat mengedit buku: {e}")
+    finally:
+        conn.close()
 
 # Fungsi untuk menambah buku digital
 def tambah_buku_digital():
@@ -142,7 +167,6 @@ def tambah_buku_digital():
 
     if st.button("Tambah Buku Digital"):
         if uploaded_file is not None:
-            # Buat direktori 'uploads' jika belum ada
             if not os.path.exists("uploads"):
                 os.makedirs("uploads")
             file_path = f"uploads/{uploaded_file.name}"
@@ -191,7 +215,6 @@ def tampilkan_semua_buku():
             buku_obj = BukuDigital(buku[1], buku[2], buku[3], buku[6], buku[7], buku[14], buku[15])
 
         buku_dict = {
-            "ID": buku[0],
             "Judul Buku": buku[1],
             "Nama Pembuat": buku_obj.penulis,
             "Tahun Terbit": buku_obj.tahun_terbit,
@@ -223,6 +246,17 @@ def tampilkan_semua_buku():
                     file_name=os.path.basename(file_path),
                     mime='application/octet-stream'
                 )
+
+    # Tampilkan tombol edit untuk setiap buku
+    if st.session_state["role"] == "admin":
+        for index, row in df_buku.iterrows():
+            unique_key = f"edit_{index}_{row['Judul Buku']}"
+            st.button("Edit", key=unique_key, on_click=go_to_edit_page, args=(row['Judul Buku'],))
+
+def go_to_edit_page(judul_buku):
+    st.session_state["edit_buku_judul"] = judul_buku
+    st.session_state["current_page"] = "edit_buku"
+    st.experimental_rerun()
 
 # Fungsi untuk menjalankan query dengan retry
 def execute_query_with_retry(query, params, commit=False):
@@ -508,6 +542,72 @@ def logout():
     st.session_state.pop("role", None)
     st.experimental_rerun()
 
+# Fungsi untuk mengedit buku
+def edit_buku_page():
+    if st.session_state.get("role") != "admin":
+        st.error("Akses ditolak. Halaman ini hanya untuk admin.")
+        return
+
+    st.subheader("Masukkan Judul Buku yang Akan Diedit")
+    judul_buku = st.text_input("Judul Buku")
+
+    if st.button("Cari Buku"):
+        st.session_state["edit_buku_judul"] = judul_buku
+        st.experimental_rerun()
+
+    judul_buku = st.session_state.get("edit_buku_judul", None)
+    if not judul_buku:
+        return
+
+    st.subheader("Edit Buku")
+    buku = ambil_buku_by_judul(judul_buku)
+    if buku:
+        jenis_buku = buku[5]
+        if jenis_buku == 'fisik':
+            judul = st.text_input("Judul", buku[1])
+            penulis = st.text_input("Penulis", buku[2])
+            tahun_terbit = st.number_input("Tahun Terbit", min_value=1500, max_value=datetime.now().year, format="%d", value=buku[3])
+            jumlah_halaman = st.number_input("Jumlah Halaman", min_value=1, format="%d", value=buku[8])
+            berat = st.number_input("Berat (gram)", min_value=1, format="%d", value=buku[9])
+
+            if st.button("Update Buku Fisik"):
+                buku = BukuFisik(judul, penulis, tahun_terbit, jumlah_halaman, berat)
+                edit_buku_db(judul_buku, buku)
+                st.success(f"Buku fisik '{judul}' berhasil diperbarui.")
+        else:
+            judul = st.text_input("Judul", buku[1])
+            penulis = st.text_input("Penulis", buku[2])
+            tahun_terbit = st.number_input("Tahun Terbit", min_value=1500, max_value=datetime.now().year, format="%d", value=buku[3])
+            ukuran_file = st.number_input("Ukuran File (MB)", value=buku[6])
+            format_file = st.selectbox("Format File", ["PDF", "EPUB", "MOBI"], index=["PDF", "EPUB", "MOBI"].index(buku[7]))
+            uploaded_file = st.file_uploader("Upload File Buku", type=["pdf", "epub", "mobi"])
+
+            if st.button("Update Buku Digital"):
+                file_path = buku[14]
+                link_download = buku[15]
+                if uploaded_file is not None:
+                    if not os.path.exists("uploads"):
+                        os.makedirs("uploads")
+                    file_path = f"uploads/{uploaded_file.name}"
+                    with open(file_path, "wb") as f:
+                        f.write(uploaded_file.getbuffer())
+                    link_download = file_path
+                buku = BukuDigital(judul, penulis, tahun_terbit, ukuran_file, format_file, file_path, link_download)
+                edit_buku_db(judul_buku, buku)
+                st.success(f"Buku digital '{judul}' berhasil diperbarui.")
+    else:
+        st.error("Buku tidak ditemukan.")
+
+# Fungsi untuk mengambil buku berdasarkan judul
+def ambil_buku_by_judul(judul_buku):
+    conn = get_connection()
+    c = conn.cursor()
+    try:
+        c.execute('SELECT * FROM buku WHERE judul=?', (judul_buku,))
+        return c.fetchone()
+    finally:
+        conn.close()
+
 # Tambahkan CSS untuk latar belakang gambar dan sidebar biru
 st.markdown(
     """
@@ -537,7 +637,7 @@ if st.session_state["logged_in"]:
     st.sidebar.image("https://i.ibb.co.com/Jsjdns1/5e7040a5-d888-4418-a7af-48446282402c.webp", use_column_width=True)
     
     if st.session_state["role"] == "admin":
-        menu = ["Tambah Buku Digital", "Tambah Buku Fisik", "Tampilkan Semua Buku", "Pinjam Buku", "Kembalikan Buku", "Hitung Denda", "Hapus Buku", "Logout"]
+        menu = ["Tambah Buku Digital", "Tambah Buku Fisik", "Tampilkan Semua Buku", "Edit Buku", "Pinjam Buku", "Kembalikan Buku", "Hitung Denda", "Hapus Buku", "Logout"]
     elif st.session_state["role"] == "superadmin":
         menu = ["Kelola Akun", "Tambah Akun Admin", "Hapus Akun", "Tambah Akun Superadmin", "Logout"]
     else:
@@ -551,6 +651,8 @@ if st.session_state["logged_in"]:
         tambah_buku_fisik()
     elif choice == "Tampilkan Semua Buku":
         tampilkan_semua_buku()
+    elif choice == "Edit Buku" and st.session_state["role"] == "admin":
+        edit_buku_page()
     elif choice == "Pinjam Buku":
         pinjam_buku()
     elif choice == "Kembalikan Buku":
@@ -581,3 +683,8 @@ else:
 
 # Tambahkan teks hak cipta di bagian bawah aplikasi
 st.markdown("<div style='text-align: center; margin-top: 50px;'>© 2024 Made Arya</div>", unsafe_allow_html=True)
+
+# Tampilkan halaman edit buku jika sedang dalam mode edit
+if "current_page" in st.session_state and st.session_state["current_page"] == "edit_buku":
+    edit_buku_page()
+
