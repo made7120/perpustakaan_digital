@@ -8,7 +8,7 @@ from abc import ABC, abstractmethod
 
 # Koneksi ke database SQLite dengan timeout
 def get_connection():
-    return sqlite3.connect('perpustakaan8.db', check_same_thread=False, timeout=10)
+    return sqlite3.connect('perpustakaan72.db', check_same_thread=False, timeout=10)
 
 # Perbarui skema tabel buku jika belum ada
 conn = get_connection()
